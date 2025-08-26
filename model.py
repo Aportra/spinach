@@ -53,6 +53,9 @@ messages = [
         ),
     }
 ]
+
+
+
 while True:
     prompt = input('>>')
     print('')
@@ -98,9 +101,25 @@ while True:
         # subprocess.run(["ollama", "stop", "gemma3:12b-it-qat"])
         quit()
     elif prompt.strip().split()[0].lower() == 'news':
+        news = None
         if len(prompt.strip().split()) < 2:
             news = req_news(None, None, None)
-        elif len(prompt.strip().split()) == 2 and prompt.strip().split()[1] not in us_sources:
+            if not news:
+                print('No news returned, check news api key in config-defaul.yaml')
+                messages.pop()
+                continue
+            else:
+                message_news = ''
+                print('news returned')
+                for key in news:
+                    message_news += key + ' '
+                    for i in range(len(news[key])):
+                        message_news += news[key][i]
+                message_return = {"role": "user",
+                                    "content": f"Here is the content of the news \n```\n{message_news}\n```"}
+                messages.append(message_return)
+                prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
+        elif len(prompt.strip().split()) == 2 and prompt.strip().split()[1] not in us_sources and prompt.strip().split()[1]!='help':
             news = req_news(None, None, int(prompt.strip().split()[1]))
 
             if not news:
@@ -109,7 +128,7 @@ while True:
                 continue
             else:
                 message_news = ''
-
+                print('news returned')
                 for key in news:
                     message_news += key + ' '
                     for i in range(len(news[key])):
@@ -127,6 +146,7 @@ while True:
                 print(f'{i+1}. {us_sources[i]}')
             continue
         elif prompt.strip().split()[1].lower() == 'search':
+            news = None
             if prompt.strip().split()[2].lower() in us_sources and len(prompt.strip().split()) == 4:
                 news = req_news(prompt.strip().split()[2].lower(), prompt.strip().split()[3].lower(), None)
             elif prompt.strip().split()[2].lower() in us_sources and len(prompt.strip().split()) == 5:
@@ -152,7 +172,11 @@ while True:
 
                 prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
         else:
-            news = req_news(prompt.strip().split()[1].lower(), None, None)
+            news = None
+            if len(prompt.strip().split()) != 3:
+                news = req_news(prompt.strip().split()[1].lower(), None, None)
+            elif len(prompt.strip().split()) == 3:
+                news = req_news(prompt.strip().split()[1].lower(), None, int(prompt.strip().split()[2].lower()))
             if not news:
                 print('No news returned, check news api key in config-defaul.yaml')
                 messages.pop()
