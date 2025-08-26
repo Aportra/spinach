@@ -98,7 +98,6 @@ while True:
             messages.pop()
             continue
     elif prompt.strip().split()[0].lower() == 'quit' or prompt.strip().split()[0].lower() == 'bye':
-        # subprocess.run(["ollama", "stop", "gemma3:12b-it-qat"])
         quit()
     elif prompt.strip().split()[0].lower() == 'news':
         news = None
@@ -110,7 +109,6 @@ while True:
                 continue
             else:
                 message_news = ''
-                print('news returned')
                 for key in news:
                     message_news += key + ' '
                     for i in range(len(news[key])):
