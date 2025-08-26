@@ -6,8 +6,6 @@ from spinach import req_news
 from spinach import search
 from pathlib import Path
 from datetime import datetime, timedelta
-import shutil
-from rich.console import Console
 
 us_sources = [
 "abc-news",
