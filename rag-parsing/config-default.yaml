@@ -1,0 +1,5 @@
+news_api_key: ""
+news_sources: "associated-press,financial-times,politico,the-hill"
+overlap: 500
+chunk_size: 1000
+model: "gemma3:12b-it-qat"

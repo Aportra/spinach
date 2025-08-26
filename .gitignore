@@ -1,0 +1,38 @@
+# Rust
++**/target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Cache / logs / models / secrets
+.fastembed_cache/
+news-api-key.txt
+
+# Misc
+*.log
+**/target/
+**/*.so
+**/*.rs.bk
+.fastembed_cache/
+__pycache__/
+*.pyc
+news-api-key.txt
+ai/
+rag-parsing/target_verbose/
+models/
+
+# AI/ML model artifacts
+*.model
+*.bin
+*.pkl
+*.onnx
+*.pt
+models/
+
+# System/IDE junk
+.DS_Store
+.env
+*.log
+rag-parsing/config.yaml

@@ -1,0 +1,222 @@
+#!/home/aportra99/spinach-rag/ai/bin/python
+import ollama
+import yaml
+from spinach import look
+from spinach import req_news
+from spinach import search
+from pathlib import Path
+from datetime import datetime, timedelta
+import shutil
+from rich.console import Console
+
+us_sources = [
+"abc-news",
+"associated-press",
+"axios",
+"breitbart-news",
+"bloomberg",
+"business-insider",
+"cbs-news",
+"cnbc",
+"cnn",
+"espn",
+"financial-times",
+"fox-news",
+"fox-sports",
+"msnbc",
+"nbc-news",
+"nbc-sports",
+"politico",
+"reuters",
+"the-hill",
+"the-wall-street-journal",
+"the-washington-post",
+"techcrunch",
+"usa-today"
+]
+yesterday = datetime.now() - timedelta(1)
+home = Path.home()
+try:
+    with open(f'{home}/spinach/rag-parsing/config.yaml', 'r') as f:
+        data = yaml.load(f, Loader=yaml.SafeLoader)
+    model = data.get("model")
+except FileNotFoundError:
+    with open(f'{home}/spinach/rag-parsing/config-default.yaml', 'r') as f:
+        data = yaml.load(f, Loader=yaml.SafeLoader)
+    model = data.get("model")
+messages = []
+messages = [
+    {
+        "role": "system",
+        "content": (
+            "Do not repeat yourself"
+            "Do not repeat back the prompt that was given to you"
+            "You're a helpful assistant"
+        ),
+    }
+]
+while True:
+    prompt = input('>>')
+    print('')
+    if prompt.strip().split()[0].lower() == 'look':
+        try:
+            if prompt.strip().split()[1].lower() == 'dyn':
+                path_loaded = None
+                file_output = look(context=prompt, folder='dynamic')
+                file_loaded = file_output[0]
+                top_idx = file_output[1]
+                prompt = file_output[2]
+                if file_output is None:
+                    continue
+                else:
+                    message_return = {"role":"user","content": f"Here is the content of the file \n```\n{file_output[0][top_idx]['content']}\n```"}
+            elif prompt.strip().split()[1].lower() == 'data':
+                path_loaded = None
+                file_output = look(context=prompt, folder='data')
+                file_loaded = file_output[0]
+                top_idx = file_output[1]
+                prompt = file_output[2] 
+                if file_output is None:
+                    continue
+                else:
+                    message_return = {"role":"user","content": f"Here is the content of the file \n```\n{file_output[0][top_idx]['content']}\n```"}
+            else:
+                file_output = look(context=prompt,folder=None)
+                path_loaded = prompt.strip().split()[1].lower()
+                file_loaded = file_output[0]
+                top_idx = file_output[1]
+                prompt = file_output[2]
+
+                if file_output is None:
+                    continue
+                else:
+                    message_return = {"role":"user","content": f"Here is the content of the file `{path_loaded}`:\n```\n{file_output[0][top_idx]['content']}\n```"}
+                messages.append(message_return)
+        except TypeError as e:
+            print(e)
+            messages.pop()
+            continue
+    elif prompt.strip().split()[0].lower() == 'quit' or prompt.strip().split()[0].lower() == 'bye':
+        # subprocess.run(["ollama", "stop", "gemma3:12b-it-qat"])
+        quit()
+    elif prompt.strip().split()[0].lower() == 'news':
+        if len(prompt.strip().split()) < 2:
+            news = req_news(None, None, None)
+        elif len(prompt.strip().split()) == 2 and prompt.strip().split()[1] not in us_sources:
+            news = req_news(None, None, int(prompt.strip().split()[1]))
+
+            if not news:
+                print('No news returned, check news api key in config-defaul.yaml')
+                messages.pop()
+                continue
+            else:
+                message_news = ''
+
+                for key in news:
+                    message_news += key + ' '
+                    for i in range(len(news[key])):
+                        message_news += news[key][i]
+                message_return = {"role": "user",
+                                    "content": f"Here is the content of the news \n```\n{message_news}\n```"}
+                messages.append(message_return)
+                prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
+        elif prompt.strip().split()[1].lower() == 'help':
+            print('You can query specific news sources for their top headlines by prompting "news source"')
+            print('Leaving this blank will query by default associated-press, politico,the-hill, and financial-times')
+            print('These can be adjusted in the config.yaml')
+            print('Below are the currently available news sources')
+            for i in range(len(us_sources)):
+                print(f'{i+1}. {us_sources[i]}')
+            continue
+        elif prompt.strip().split()[1].lower() == 'search':
+            if prompt.strip().split()[2].lower() in us_sources and len(prompt.strip().split()) == 4:
+                news = req_news(prompt.strip().split()[2].lower(), prompt.strip().split()[3].lower(), None)
+            elif prompt.strip().split()[2].lower() in us_sources and len(prompt.strip().split()) == 5:
+                news = req_news(prompt.strip().split()[2].lower(), prompt.strip().split()[3].lower(),int(prompt.strip().split()[4].lower()))
+            elif prompt.strip().split()[2].lower() not in us_sources and len(prompt.strip().split()) == 3:
+                news = req_news(None, prompt.strip().split()[2].lower(), None)
+            elif prompt.strip().split()[2].lower() not in us_sources and len(prompt.strip().split()) == 4:
+                news = req_news(None,prompt.strip().split()[2].lower(),int(prompt.strip().split()[3].lower()))
+            if not news:
+                print('No news returned, check news api key in config-defaul.yaml')
+                messages.pop()
+                continue
+            else:
+                message_news = ''
+
+                for key in news:
+                    message_news += key + ' '
+                    for i in range(len(news[key])):
+                        message_news += news[key][i]
+                message_return = {"role": "user",
+                                    "content": f"Here is the content of the news \n```\n{message_news}\n```"}
+                messages.append(message_return)
+
+                prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
+        else:
+            news = req_news(prompt.strip().split()[1].lower(), None, None)
+            if not news:
+                print('No news returned, check news api key in config-defaul.yaml')
+                messages.pop()
+                continue
+            else:
+                message_news = ''
+
+                for key in news:
+                    message_news += key + ' '
+                    for i in range(len(news[key])):
+                        message_news += news[key][i]
+                message_return = {"role": "user",
+                                    "content": f"Here is the content of the news \n```\n{message_news}\n```"}
+                messages.append(message_return)
+
+                prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
+
+    elif prompt.strip().split()[0].lower() == 'search':
+        search = search(prompt.split(' ',1)[1])
+        if not search:
+            print('No news returned, check news api key in config-defaul.yaml')
+            messages.pop()
+            continue
+        else:
+            search_results = ''
+
+            for key in search:
+                search_results += key + ' '
+                for i in range(len(search[key])):
+                    search_results += search[key][i]
+            message_return = {"role": "user",
+                                "content": f"Here is the content of the search results \n```\n{search_results}\n```"}
+            messages.append(message_return)
+
+            prompt = f'summarize, at the end of each summary supply the url of the results. each results should be counted. Example 1. First result 2. Second result.  Summarize them in as much detail as you can while making sure to not make anything up.'
+
+    elif prompt.strip().split()[0].lower() == 'update':
+        if path_loaded is None:
+            print('no valid file loaded')
+            continue
+        else:
+            update_prompt = "look "+ path_loaded
+            print(update_prompt)
+            file_output = look(context=update_prompt,folder=None)
+            file_loaded = file_output[0]
+            top_idx = file_output[1]
+            output = file_output[2]+ f"" + file_output[0][top_idx]['content']
+            message_return = {"role": "user",
+                              "content": f"{file_output[2]} here is the content of the file name {path_loaded}:{file_output[0][top_idx]['content']}"}
+            messages.append(message_return)
+    elif prompt.strip().split()[0].lower() == 'reset':
+        messages.clear()
+        file_loaded.clear()
+        print('context cleared')
+        continue
+    messages.append({"role": "user", "content": prompt})
+    response = (ollama.chat(model=model,
+                            messages=messages,
+                            stream=True))
+    ai_response = ''
+    for i in response:
+        ai_response += i['message']['content']
+        print(i['message']['content'], end='', flush=True)
+    messages.append({"role": "assistant", "content": ai_response})
+    print('')
