@@ -104,7 +104,9 @@ while True:
         if len(prompt.strip().split()) < 2:
             news = req_news(None, None, None)
             if not news:
-                print('No news returned, check news api key in config-defaul.yaml')
+                print('No news returned, check news api key in config-default.yaml')
+                print('This tool uses NewsAPI  for retrieving news')
+                print('If you do not have an api key you can retrieve one here: https://newsapi.org/')
                 messages.pop()
                 continue
             else:
@@ -122,11 +124,12 @@ while True:
 
             if not news:
                 print('No news returned, check news api key in config-default.yaml')
+                print('This tool uses NewsAPI  for retrieving news')
+                print('If you do not have an api key you can retrieve one here: https://newsapi.org/')
                 messages.pop()
                 continue
             else:
                 message_news = ''
-                print('news returned')
                 for key in news:
                     message_news += key + ' '
                     for i in range(len(news[key])):
@@ -154,7 +157,9 @@ while True:
             elif prompt.strip().split()[2].lower() not in us_sources and len(prompt.strip().split()) == 4:
                 news = req_news(None,prompt.strip().split()[2].lower(),int(prompt.strip().split()[3].lower()))
             if not news:
-                print('No news returned, check news api key in config-defaul.yaml')
+                print('No news returned, check news api key in config-default.yaml')
+                print('This tool uses NewsAPI  for retrieving news')
+                print('If you do not have an api key you can retrieve one here: https://newsapi.org/')
                 messages.pop()
                 continue
             else:
@@ -176,7 +181,9 @@ while True:
             elif len(prompt.strip().split()) == 3:
                 news = req_news(prompt.strip().split()[1].lower(), None, int(prompt.strip().split()[2].lower()))
             if not news:
-                print('No news returned, check news api key in config-defaul.yaml')
+                print('No news returned, check news api key in config-default.yaml')
+                print('This tool uses NewsAPI  for retrieving news')
+                print('If you do not have an api key you can retrieve one here: https://newsapi.org/')
                 messages.pop()
                 continue
             else:
@@ -193,10 +200,11 @@ while True:
                 prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
 
     elif prompt.strip().split()[0].lower() == 'search':
-        print(type(prompt.split(' ',1)[1]))
         search_var = search(prompt.split(' ',1)[1])
         if not search_var:
-            print('No news returned, check news api key in config-defaul.yaml')
+            print('No search results returned, check search_api key in config-default.yaml')
+            print('This tool uses Serper search API for searching google')
+            print('If you do not have an api key you can retrieve one here: https://serper.dev/')
             messages.pop()
             continue
         else:
