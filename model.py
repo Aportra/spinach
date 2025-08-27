@@ -50,10 +50,10 @@ messages = [
             "Do not repeat yourself"
             "Do not repeat back the prompt that was given to you"
             "You're a helpful assistant"
+            "when asked for a quiz, do not give the answers instead give answers when grading the user's answers"
         ),
     }
 ]
-
 
 
 while True:
@@ -121,7 +121,7 @@ while True:
             news = req_news(None, None, int(prompt.strip().split()[1]))
 
             if not news:
-                print('No news returned, check news api key in config-defaul.yaml')
+                print('No news returned, check news api key in config-default.yaml')
                 messages.pop()
                 continue
             else:
@@ -193,23 +193,24 @@ while True:
                 prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
 
     elif prompt.strip().split()[0].lower() == 'search':
-        search = search(prompt.split(' ',1)[1])
-        if not search:
+        print(type(prompt.split(' ',1)[1]))
+        search_var = search(prompt.split(' ',1)[1])
+        if not search_var:
             print('No news returned, check news api key in config-defaul.yaml')
             messages.pop()
             continue
         else:
             search_results = ''
 
-            for key in search:
+            for key in search_var:
                 search_results += key + ' '
-                for i in range(len(search[key])):
-                    search_results += search[key][i]
+                for i in range(len(search_var[key])):
+                    search_results += search_var[key][i]
             message_return = {"role": "user",
                                 "content": f"Here is the content of the search results \n```\n{search_results}\n```"}
             messages.append(message_return)
 
-            prompt = f'summarize, at the end of each summary supply the url of the results. each results should be counted. Example 1. First result 2. Second result.  Summarize them in as much detail as you can while making sure to not make anything up.'
+            prompt = f'from the search results given, try your best to answer the question, provide sources, and if you feel as though you cannot discern a proper answer simply return the urls with a summary of each. The question or search was: {prompt.split(' ',1)[1]}'
 
     elif prompt.strip().split()[0].lower() == 'update':
         if path_loaded is None:
