@@ -227,7 +227,7 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
 
     if Path::exists(Path::new(&path)) {
         let m_data = File::open(path).unwrap().metadata().unwrap();
-        if m_data.len() < (1 << (20)) * 100 {
+        if m_data.len() < (100 << (20)) {
             let user_prompt = user_input();
             let split_user = user_prompt.split_whitespace().collect();
             let content = read_to_string(path)?;
@@ -368,7 +368,7 @@ pub fn search(q: String) -> PyResult<HashMap<String, Vec<String>>> {
     let mut search_result: HashMap<String, Vec<String>> = HashMap::new();
 
     if let Some(search) = request.get("organic").and_then(|a| a.as_array()) {
-        for a in search.iter().take(5) {
+        for a in search.iter().take(10) {
             let title = a.get("title").and_then(|t| t.as_str()).unwrap_or("");
             let description = a.get("snippet").and_then(|d| d.as_str()).unwrap_or("");
             let url = a.get("link").and_then(|d| d.as_str()).unwrap_or("");

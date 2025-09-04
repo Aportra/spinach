@@ -1,6 +1,8 @@
 #!/home/aportra99/spinach-rag/ai/bin/python
 import ollama
 import yaml
+import re
+import sys
 from spinach import look
 from spinach import req_news
 from spinach import search
@@ -41,7 +43,6 @@ try:
 except FileNotFoundError:
     with open(f'{home}/spinach/rag-parsing/config-default.yaml', 'r') as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
-    model = data.get("model")
 messages = []
 messages = [
     {
@@ -55,10 +56,16 @@ messages = [
     }
 ]
 
-
 while True:
     prompt = input('>>')
     print('')
+    if prompt == '+++':
+        while True:
+            text = sys.stdin.readline()
+            if text.strip().endswith('END'):
+                break
+            else:
+                prompt += text
     if prompt.strip().split()[0].lower() == 'look':
         try:
             if prompt.strip().split()[1].lower() == 'dyn':
@@ -119,7 +126,7 @@ while True:
                                     "content": f"Here is the content of the news \n```\n{message_news}\n```"}
                 messages.append(message_return)
                 prompt = f'summarize, at the end of each summary supply the url of article. each article should be counted. Example 1. First article 2. Second Article. Articles are from Date: {yesterday}. Summarize them in as much detail as you can while making sure to not make anything up.'
-        elif len(prompt.strip().split()) == 2 and prompt.strip().split()[1] not in us_sources and prompt.strip().split()[1]!='help':
+        elif len(prompt.strip().split()) == 2 and prompt.strip().split()[1] not in us_sources and prompt.strip().split()[1]!='help' and prompt.strip().split()[1]!='search':
             news = req_news(None, None, int(prompt.strip().split()[1]))
 
             if not news:
@@ -244,8 +251,9 @@ while True:
                             messages=messages,
                             stream=True))
     ai_response = ''
+    skip = False
     for i in response:
-        ai_response += i['message']['content']
-        print(i['message']['content'], end='', flush=True)
+        ai_response += i["message"]["content"]
+        print(i["message"]["content"], end='', flush=True)
     messages.append({"role": "assistant", "content": ai_response})
     print('')
