@@ -232,7 +232,7 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
             let split_user = user_prompt.split_whitespace().collect();
             let content = read_to_string(path)?;
 
-            let final_content: Vec<&str> = content.split_whitespace().collect();
+            let final_content: Vec<&str> = content.split_inclusive('\n').collect();
 
             let mut start = 0;
             let chunk_size = chunk;
@@ -245,7 +245,11 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
             while start < final_content.len() {
                 let mut prepped_file: HashMap<String, String> = HashMap::new();
                 let end = usize::min(start + chunk_size, final_content.len());
-                let chunk_text = final_content[start..end].join(" ");
+                let chunk_text = if final_content.iter().any(|w| w.contains("\n")) {
+                    final_content.join("")
+                } else {
+                    final_content.join(" ")
+                };
 
                 let embedded_text = embeder
                     .embed(vec![chunk_text.clone()], None)

@@ -122,7 +122,7 @@ fn chunk_file(path: &Path, file_type: &String) -> Result<()> {
 
         let final_content = String::from_utf8_lossy(&contents).to_string();
         let words: Vec<String> = final_content
-            .split_whitespace()
+            .split_inclusive('\n')
             .map(|e| e.to_string())
             .collect();
         let mut start = 0;
@@ -133,7 +133,11 @@ fn chunk_file(path: &Path, file_type: &String) -> Result<()> {
 
         while start < words.len() {
             let end = usize::min(start + chunk_size, words.len());
-            let chunk_text = words[start..end].join(" ");
+            let chunk_text = if words.iter().any(|w| w.contains("\n")) {
+                words.join("")
+            } else {
+                words.join(" ")
+            };
 
             let embedding = model.embed(vec![chunk_text.clone()], None)?.pop().unwrap();
 
