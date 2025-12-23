@@ -39,15 +39,13 @@ pub fn find_file(path: String) -> PyResult<String> {
         .filter_map(|e| match e {
             Ok(e) if e.file_type().is_file() => Some(e),
 
-            Err(err) => {
-                println!("Walk dir error:{}", err);
-                None
-            }
-
             _ => None,
         })
         .filter_map(|e| read_to_string(e.path()).ok())
         .collect();
+    if directory.len() < 1 {
+        return Err(pyo3::exceptions::PyFileNotFoundError::new_err(""));
+    }
     let json: Vec<serde_json::Value> = directory
         .into_iter()
         .map(|s| serde_json::from_str(&s).unwrap())
@@ -297,19 +295,26 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
                 look(format!("look {dyn_prompt}"), None)
             }
             Some(folder) if folder == "data" => {
-                let user_prompt = user_input();
-                let split_user = user_prompt.split_whitespace().collect();
                 let file = home_dir()
                     .unwrap()
                     .join(format!("spinach-rag/data/{}", prompt[2]));
 
-                let result_json = find_file(file.to_string_lossy().to_string())?;
+                let result_json: String = match find_file(file.to_string_lossy().to_string()) {
+                    Ok(file) => file,
+                    Err(_) => {
+                        return Err(pyo3::exceptions::PyFileNotFoundError::new_err(
+                            "File Not Found",
+                        ))
+                    }
+                };
 
                 let embed_files: Vec<JsonData> = serde_json::from_str(&result_json).unwrap();
 
                 let chunks: Vec<Vec<f32>> =
                     embed_files.iter().map(|x| x.chunks.to_owned()).collect();
 
+                let user_prompt = user_input();
+                let split_user = user_prompt.split_whitespace().collect();
                 let embedded_prompt = embeder.embed(split_user, None).unwrap().pop().unwrap();
                 let similarities: Vec<f32> = cosine_similarity(&embedded_prompt, &chunks).unwrap();
 
@@ -336,8 +341,12 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
             )),
             _ => Err(pyo3::exceptions::PyTypeError::new_err("File error")),
         };
-
-        Ok(result?)
+        match result {
+            Ok(r) => Ok(r),
+            Err(_) => Err(pyo3::exceptions::PyRuntimeError::new_err(
+                "Error looking for file",
+            )),
+        }
     }
 }
 

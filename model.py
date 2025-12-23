@@ -105,6 +105,14 @@ while True:
             print(e)
             messages.pop()
             continue
+        except RuntimeError as e:
+            print(e)
+            messages.pop()
+            continue
+        except FileNotFoundError as e:
+            print(e)
+            messages.pop()
+            continue
     elif prompt.strip().split()[0].lower() == 'quit' or prompt.strip().split()[0].lower() == 'bye':
         quit()
     elif prompt.strip().split()[0].lower() == 'news':
