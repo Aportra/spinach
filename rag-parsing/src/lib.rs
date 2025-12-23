@@ -31,18 +31,20 @@ struct JsonData {
 }
 
 #[pyfunction]
-pub fn find_file(path: String, file_name: String) -> PyResult<String> {
-    let full_path = format!("{path}/{file_name}");
+pub fn find_file(path: String) -> PyResult<String> {
+    let full_path = format!("{path}");
     println!("Path exists? {}", Path::new(&full_path).exists());
     let directory: Vec<_> = WalkDir::new(full_path)
         .into_iter()
         .filter_map(|e| match e {
             Ok(e) if e.file_type().is_file() => Some(e),
 
-            _ => {
-                println!("Error file not found");
+            Err(err) => {
+                println!("Walk dir error:{}", err);
                 None
             }
+
+            _ => None,
         })
         .filter_map(|e| read_to_string(e.path()).ok())
         .collect();
@@ -301,8 +303,7 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
                     .unwrap()
                     .join(format!("spinach-rag/data/{}", prompt[2]));
 
-                let result_json =
-                    find_file(file.to_string_lossy().to_string(), prompt[2].to_string())?;
+                let result_json = find_file(file.to_string_lossy().to_string())?;
 
                 let embed_files: Vec<JsonData> = serde_json::from_str(&result_json).unwrap();
 
@@ -319,7 +320,6 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
                     .iter()
                     .flat_map(|item| item.chunks.iter().map(|f| f.to_string()))
                     .collect();
-
                 for i in 0..embed_files.len() {
                     let mut data: HashMap<String, String> = HashMap::new();
                     data.insert("content".to_string(), embed_files[i].content.clone());
@@ -331,9 +331,10 @@ pub fn look(context: String, folder: Option<String>) -> PyResult<(DataPassBack, 
 
                 Ok((final_data, top_idx, user_prompt))
             }
-            _ => Err(pyo3::exceptions::PyTypeError::new_err(
+            None => Err(pyo3::exceptions::PyTypeError::new_err(
                 "Error file not found",
             )),
+            _ => Err(pyo3::exceptions::PyTypeError::new_err("File error")),
         };
 
         Ok(result?)

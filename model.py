@@ -81,9 +81,10 @@ while True:
             elif prompt.strip().split()[1].lower() == 'data':
                 path_loaded = None
                 file_output = look(context=prompt, folder='data')
+                print(file_output)
                 file_loaded = file_output[0]
                 top_idx = file_output[1]
-                prompt = file_output[2] 
+                prompt = file_output[2]
                 if file_output is None:
                     continue
                 else:
@@ -99,7 +100,7 @@ while True:
                     continue
                 else:
                     message_return = {"role":"user","content": f"Here is the content of the file `{path_loaded}`:\n```\n{file_output[0][top_idx]['content']}\n```"}
-                messages.append(message_return)
+            messages.append(message_return)
         except TypeError as e:
             print(e)
             messages.pop()
