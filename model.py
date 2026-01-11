@@ -51,7 +51,6 @@ messages = [
             "Do not repeat yourself"
             "Do not repeat back the prompt that was given to you"
             "You're a helpful assistant"
-            "when asked for a quiz, do not give the answers instead give answers when grading the user's answers"
         ),
     }
 ]
