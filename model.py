@@ -3,13 +3,7 @@ import ollama
 import discord
 import asyncio
 import yaml
-import draw
 import bot_commands
-from psql import psql
-# from spinach import look
-from spinach import req_news
-from spinach import search
-from datetime import datetime, timedelta
 from pathlib import Path
 
 home = Path.home()
