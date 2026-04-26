@@ -1,5 +1,5 @@
 news_api_key: ""
-news_sources: ""
+news_sources: "associated-press,financial-times,politico,the-hill"
 search_api: ""
 discord_key: ""
 overlap: 500
