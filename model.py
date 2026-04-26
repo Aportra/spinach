@@ -48,8 +48,6 @@ messages = [
     {
         "role": "system",
         "content": (
-            "Do not repeat yourself"
-            "Do not repeat back the prompt that was given to you"
             "You're a helpful assistant"
         ),
     }
