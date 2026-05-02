@@ -101,7 +101,8 @@ async def news_fn(messages):
 
     return None, response['message']['content']
 
-
+async def lookup(message, messages):
+    print(message)
 
 # async def save_chat(messages):
 

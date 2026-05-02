@@ -58,7 +58,8 @@ async def on_message(message):
     commands = ({"!set_schema":lambda:bot_commands.set_schema(message.content.split(' ', 1)[1],schema_messages),
                  "!query":lambda:bot_commands.query(message.content.split(' ', 1)[1], schema_messages),
                  "!search":lambda:bot_commands.search_fn(message.content.split(' ', 1)[1], messages),
-                 "!news":lambda:bot_commands.news_fn(messages)})
+                 "!news":lambda:bot_commands.news_fn(messages),
+                 "!look": lambda:bot_commands.look(message.attachments,message.content.split(' ', 1)[1])})
     if message.channel.id != 1496956603612532766:
         return
     if message.author == client.user:
