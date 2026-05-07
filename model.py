@@ -1,10 +1,13 @@
 import ollama
 # import os
+import requests
 import discord
 import asyncio
 import yaml
 import bot_commands
 from pathlib import Path
+from datetime import datetime
+from spinach import look
 
 home = Path.home()
 try:
@@ -58,8 +61,8 @@ async def on_message(message):
     commands = ({"!set_schema":lambda:bot_commands.set_schema(message.content.split(' ', 1)[1],schema_messages),
                  "!query":lambda:bot_commands.query(message.content.split(' ', 1)[1], schema_messages),
                  "!search":lambda:bot_commands.search_fn(message.content.split(' ', 1)[1], messages),
-                 "!news":lambda:bot_commands.news_fn(messages),
-                 "!look": lambda:bot_commands.look(message.attachments,message.content.split(' ', 1)[1])})
+                 "!news":lambda:bot_commands.news_fn(messages)
+                 })
     if message.channel.id != 1496956603612532766:
         return
     if message.author == client.user:
@@ -81,7 +84,22 @@ async def on_message(message):
             buf.close()
 
         return
+    if message.attachments:
+        files = {}
+        for attachment in message.attachments:
+            file_content = await attachment.read()
+            files[f'{attachment.filename}'] = file_content.decode('utf-8')
 
+        data = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: look(context= message.content, file= files))
+
+        m = {"role": "user", "content": "here is the file:"+str(data)+message.content}
+
+        response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
+                                messages=[m],
+                                stream=False))
+        await message.channel.send(response['message']['content'])
+        return
     messages.append({"role": "user", "content": message.content})
     print(f"Message received: {message.content}")
 

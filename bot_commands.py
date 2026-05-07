@@ -5,7 +5,6 @@ import asyncio
 import yaml
 import draw
 from psql import psql
-# from spinach import look
 from spinach import req_news
 from spinach import search
 from datetime import datetime, timedelta
@@ -101,9 +100,6 @@ async def news_fn(messages):
 
     return None, response['message']['content']
 
-async def lookup(message, messages):
-    print(message)
 
-# async def save_chat(messages):
 
 
