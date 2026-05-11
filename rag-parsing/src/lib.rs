@@ -19,7 +19,7 @@ use walkdir::WalkDir;
 mod util;
 
 type DataPassBack = HashMap<String, String>;
-type NewsResult = HashMap<String, Vec<String>>;
+type NewsResult = HashMap<String, HashMap<String, String>>;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct JsonData {
@@ -42,7 +42,7 @@ fn parse_yaml() -> Result<Value> {
 }
 
 #[pyfunction]
-pub fn req_news() -> PyResult<HashMap<String, Vec<String>>> {
+pub fn req_news() -> PyResult<HashMap<String, HashMap<String,String>>> {
     let num_articles = 10;
 
     let config = parse_yaml().unwrap();
@@ -79,21 +79,27 @@ pub fn req_news() -> PyResult<HashMap<String, Vec<String>>> {
 
         if let Some(articles) = request.get("articles").and_then(|a| a.as_array()) {
             for a in articles.iter().take(number) {
+                let mut d = HashMap::new();
                 let title = a.get("title").and_then(|t| t.as_str()).unwrap_or("");
                 let source = a.get("source").and_then(|s| s.get("name")).and_then(|d| d.as_str()).unwrap_or("");
                 let description = a.get("description").and_then(|d| d.as_str()).unwrap_or("");
                 let content = a.get("content").and_then(|d| d.as_str()).unwrap_or("");
                 let url = a.get("url").and_then(|d| d.as_str()).unwrap_or("");
                 let date = a.get("publishedAt").and_then(|d| d.as_str()).unwrap_or("");
+                   d.insert( 
+                        "description".to_string(),description.to_string()
+                   );
+                   d.insert("content".to_string(),
+                        content.to_string());
+                   d.insert("url".to_string(),
+                        url.to_string());
+                    d.insert("published_date".to_string(),
+                        date.to_string());
+                    d.insert("source".to_string(),
+                        source.to_string());
                 news_result.insert(
                     title.to_string(),
-                    vec![
-                        description.to_string(),
-                        content.to_string(),
-                        url.to_string(),
-                        date.to_string(),
-                        source.to_string()
-                    ],
+                    d
                 );
             }
         };
@@ -103,10 +109,10 @@ pub fn req_news() -> PyResult<HashMap<String, Vec<String>>> {
     let news_result = 
             get_news(format!(
             "https://newsapi.org/v2/top-headlines?sources={default_news_sources}&apiKey={news_api_key}"
-        ),num_articles);
+        ),num_articles).unwrap();
     
 
-    Ok(news_result.unwrap())
+    Ok(news_result)
 }
 
 #[pyfunction]

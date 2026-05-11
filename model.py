@@ -1,12 +1,11 @@
 import ollama
 # import os
-import requests
 import discord
 import asyncio
 import yaml
 import bot_commands
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime as dt
 from spinach import look
 
 home = Path.home()
@@ -21,14 +20,14 @@ discord_key = data.get("discord_key")
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
-
+last_message = None
 messages = [
     {
         "role": "system",
         "content": (
             "You're a helpful assistant"
             "Make sure the message will fit in discord rules of 4000 words or less"
-            f"Current date is {datetime.now()}"
+            f"Current date is {dt.now()}"
         ),
     }
 ]
@@ -58,11 +57,22 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    if message.author == client.user:
+        return
     commands = ({"!set_schema":lambda:bot_commands.set_schema(message.content.split(' ', 1)[1],schema_messages),
                  "!query":lambda:bot_commands.query(message.content.split(' ', 1)[1], schema_messages),
                  "!search":lambda:bot_commands.search_fn(message.content.split(' ', 1)[1], messages),
-                 "!news":lambda:bot_commands.news_fn(messages)
+                 "!news":lambda:bot_commands.news_fn()
                  })
+
+    global last_message
+
+    lm = dt.strptime(str(message.created_at).split('.')[0],"%Y-%m-%d %H:%M:%S")
+    if last_message is not None:
+        gap = lm - last_message
+        if gap.total_seconds() > 1:
+            print('old news')
+    last_message = lm
     if message.channel.id != 1496956603612532766:
         return
     if message.author == client.user:
