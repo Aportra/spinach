@@ -13,6 +13,7 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::path::Path;
+use scraper::{Html, Selector};
 use util::VecMath;
 use walkdir::WalkDir;
 
@@ -42,7 +43,7 @@ fn parse_yaml() -> Result<Value> {
 }
 
 #[pyfunction]
-pub fn req_news() -> PyResult<HashMap<String, HashMap<String,String>>> {
+pub fn req_news() -> PyResult<HashMap<String, String>> {
     let num_articles = 10;
 
     let config = parse_yaml().unwrap();
@@ -51,9 +52,10 @@ pub fn req_news() -> PyResult<HashMap<String, HashMap<String,String>>> {
 
     let default_news_sources = config.get("news_sources").and_then(|a| a.as_str()).unwrap();
 
-    fn get_news(url: String, number: usize) -> Result<NewsResult> {
+    fn get_news(url: String, number: usize) -> Result<HashMap<String,String>> {
         let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static("spinach-cli/0.1"));
+        headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"));
+        headers.insert("Accept",HeaderValue::from_static("application/json, text/plain, */*"));
 
         let client = Client::builder()
             .default_headers(headers)
@@ -103,20 +105,45 @@ pub fn req_news() -> PyResult<HashMap<String, HashMap<String,String>>> {
                 );
             }
         };
-        Ok(news_result)
+        let mut final_hash:HashMap<String,String> = HashMap::new(); 
+        for key in news_result.keys(){
+            let url = &news_result[key]["url"];
+
+            let l = client.get(url).send()
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("HTTP error: {e}"))
+            })?
+            .text()
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("JSON parse error: {e}"))
+            })?;
+
+            let document = Html::parse_document(&l);
+
+            let p_tags = Selector::parse("p").unwrap();
+
+            let mut doc = String::new();
+            doc.push_str(&format!("URL: {}",url));
+            for ele in document.select(&p_tags){
+                doc.push_str(&ele.text().collect::<String>());
+            }
+            final_hash.insert(key.to_owned(),doc);
+            
+        }
+
+        Ok(final_hash)
     }
 
-    let news_result = 
+    let result = 
             get_news(format!(
             "https://newsapi.org/v2/top-headlines?sources={default_news_sources}&apiKey={news_api_key}"
         ),num_articles).unwrap();
     
 
-    Ok(news_result)
+    Ok(result)
 }
 
-#[pyfunction]
-pub fn cosine_similarity(prompt: Vec<f32>, embedded_text: Vec<Vec<f32>>) -> PyResult<usize> {
+pub fn cosine_similarity(prompt: Vec<f32>, embedded_text: Vec<Vec<f32>>) -> Result<usize> {
     fn dot(a: &[f32], b: &[f32]) -> f32 {
         a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
     }
@@ -242,6 +269,5 @@ fn spinach(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(req_news, m)?)?;
     m.add_function(wrap_pyfunction!(look, m)?)?;
     m.add_function(wrap_pyfunction!(search, m)?)?;
-    m.add_function(wrap_pyfunction!(cosine_similarity, m)?)?;
     Ok(())
 }

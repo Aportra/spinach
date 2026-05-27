@@ -7,6 +7,8 @@ import bot_commands
 from pathlib import Path
 from datetime import datetime as dt
 from spinach import look
+from psql import psql
+
 
 home = Path.home()
 try:
@@ -17,6 +19,7 @@ except FileNotFoundError:
         data = yaml.load(f, Loader=yaml.SafeLoader)
 model = data.get("model")
 discord_key = data.get("discord_key")
+parent_id = data.get("parent_id")
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
@@ -26,7 +29,6 @@ messages = [
         "role": "system",
         "content": (
             "You're a helpful assistant"
-            "Make sure the message will fit in discord rules of 4000 words or less"
             f"Current date is {dt.now()}"
         ),
     }
@@ -34,6 +36,9 @@ messages = [
 max_history = 20
 schema_messages = []
 
+threads = {"chat_id": [], "summary": [], "date_of_chat": []}
+
+active_thread = []
 
 
 def split_message(text, limit=2000):
@@ -53,29 +58,79 @@ def split_message(text, limit=2000):
 @client.event
 async def on_ready():
     print(f"Logged in as {client.user} and ready")
+    forum = client.get_channel(parent_id)
+    print(parent_id)
+    if forum:
+        for thread in forum.threads:
+            if thread.id not in threads["chat_id"]:
+                threads["chat_id"].append(thread.id)
+
+    print(len(threads["chat_id"]))
+
+
+@client.event
+async def on_thread_create(thread):
+    if thread.parent_id == parent_id:
+        starter = await thread.fetch_message(thread.id)
+        threads["chat_id"].append(thread.id)
+        messages.append({"role": "user", "content": starter.content})
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: ollama.chat(model=model, messages=messages, stream=False)
+        )
+        content = response["message"]["content"]
+        await thread.send(content)
+
+
+@client.event
+async def on_thread_delete(thread):
+    messages.clear()
 
 
 @client.event
 async def on_message(message):
     if message.author == client.user:
         return
-    commands = ({"!set_schema":lambda:bot_commands.set_schema(message.content.split(' ', 1)[1],schema_messages),
-                 "!query":lambda:bot_commands.query(message.content.split(' ', 1)[1], schema_messages),
-                 "!search":lambda:bot_commands.search_fn(message.content.split(' ', 1)[1], messages),
-                 "!news":lambda:bot_commands.news_fn()
+    commands = ({"!set_schema": lambda: (bot_commands
+                                         .set_schema(
+                                            message.content.split(' ', 1)[1],
+                                            schema_messages)),
+                 "!query": lambda: (bot_commands
+                                    .query(message.content.split(' ', 1)[1],
+                                           schema_messages)),
+                 "!search": lambda: (bot_commands
+                                     .search_fn(message.content.split(' ', 1)[1],
+                                                messages)),
+                 "!news": lambda: bot_commands.news_fn(),
+                 "!save": lambda: bot_commands.save()
                  })
 
     global last_message
 
     lm = dt.strptime(str(message.created_at).split('.')[0],"%Y-%m-%d %H:%M:%S")
-    if last_message is not None:
-        gap = lm - last_message
-        if gap.total_seconds() > 1:
-            print('old news')
     last_message = lm
-    if message.channel.id != 1496956603612532766:
+    if message.channel.id not in threads["chat_id"]:
         return
     if message.author == client.user:
+        return
+    print(message.channel.id)
+    if message.channel.id not in active_thread:
+        if message.channel.id not in threads["chat_id"]:
+            messages.clear()
+            active_thread.clear()
+            threads["chat_id"].append(message.channel_id)
+            active_thread.append(message.channel.id)
+        else:
+            messages.clear()
+            active_thread.clear()
+            active_thread.append(message.channel.id)
+        messages.append({"role": "user", "content": message.content})
+        response = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: ollama.chat(model=model, messages=messages, stream=False)
+        )
+        content = response["message"]["content"]
+        chunks = split_message(content)
+        for chunk in chunks:
+            await message.channel.send(chunk)
         return
     if message.content.startswith("!"):
         com = message.content.split(' ', 1)[0]
