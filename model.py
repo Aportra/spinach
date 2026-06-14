@@ -1,9 +1,10 @@
 import ollama
-# import os
 import discord
 import asyncio
 import yaml
 import bot_commands
+import pandas as pd
+import base64
 from pathlib import Path
 from datetime import datetime as dt
 from spinach import look
@@ -18,6 +19,7 @@ except FileNotFoundError:
     with open(f'{home}/spinach/rag-parsing/config-default.yaml', 'r') as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
 model = data.get("model")
+thinking_model = data.get("thinking_model")
 discord_key = data.get("discord_key")
 parent_id = data.get("parent_id")
 intents = discord.Intents.default()
@@ -69,25 +71,10 @@ async def on_ready():
 
 
 @client.event
-async def on_thread_create(thread):
-    if thread.parent_id == parent_id:
-        starter = await thread.fetch_message(thread.id)
-        threads["chat_id"].append(thread.id)
-        messages.append({"role": "user", "content": starter.content})
-        response = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: ollama.chat(model=model, messages=messages, stream=False)
-        )
-        content = response["message"]["content"]
-        await thread.send(content)
-
-
-@client.event
-async def on_thread_delete(thread):
-    messages.clear()
-
-
-@client.event
 async def on_message(message):
+
+    db = psql()
+
     if message.author == client.user:
         return
     commands = ({"!set_schema": lambda: (bot_commands
@@ -101,18 +88,18 @@ async def on_message(message):
                                      .search_fn(message.content.split(' ', 1)[1],
                                                 messages)),
                  "!news": lambda: bot_commands.news_fn(),
-                 "!save": lambda: bot_commands.save()
+                "think!": lambda: (bot_commands.think(message.content.split(' ', 1)[1],
+                                                    messages))
                  })
 
     global last_message
 
-    lm = dt.strptime(str(message.created_at).split('.')[0],"%Y-%m-%d %H:%M:%S")
+    lm = dt.strptime(str(message.created_at).split('.')[0], "%Y-%m-%d %H:%M:%S")
     last_message = lm
     if message.channel.id not in threads["chat_id"]:
         return
     if message.author == client.user:
         return
-    print(message.channel.id)
     if message.channel.id not in active_thread:
         if message.channel.id not in threads["chat_id"]:
             messages.clear()
@@ -123,15 +110,6 @@ async def on_message(message):
             messages.clear()
             active_thread.clear()
             active_thread.append(message.channel.id)
-        messages.append({"role": "user", "content": message.content})
-        response = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: ollama.chat(model=model, messages=messages, stream=False)
-        )
-        content = response["message"]["content"]
-        chunks = split_message(content)
-        for chunk in chunks:
-            await message.channel.send(chunk)
-        return
     if message.content.startswith("!"):
         com = message.content.split(' ', 1)[0]
         if com not in commands.keys():
@@ -139,6 +117,12 @@ async def on_message(message):
             return
         buf, response = await commands[com]()
         if response is not None:
+            # data_upload = ({"chat_id": message.channel.id,
+            #                 "user_msg": message.content,
+            #                 "bot_msg": response,
+            #                 "created_at": last_message})
+            # db.upload_data(pd.DataFrame(data_upload, index=[0]), "chat_log")
+            # db.close()
             chunks = split_message(response)
             for chunk in chunks:
                 await message.channel.send(chunk)   # messages.append
@@ -150,20 +134,31 @@ async def on_message(message):
 
         return
     if message.attachments:
+        print("Reached")
         files = {}
+        images = []
+        image_ext = ('.png', '.jpg', '.jpeg', '.webp', '.gif')
         for attachment in message.attachments:
             file_content = await attachment.read()
-            files[f'{attachment.filename}'] = file_content.decode('utf-8')
+            if attachment.content_type.startswith("image/") or attachment.filename.lower().endswith(image_ext):
+                images.append(base64.b64encode(file_content).decode('utf-8'))
+            else:
+                files[f'{attachment.filename}'] = file_content.decode('utf-8')
 
-        data = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: look(context= message.content, file= files))
-
-        m = {"role": "user", "content": "here is the file:"+str(data)+message.content}
+        if len(images) > 0:
+            m = {"role": "user", "content": message.content, "images": images}
+        else:
+            print("Reached")
+            data = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: look(context= message.content, file= files))
+            m = {"role": "user", "content": "here is the file:"+str(data)+message.content}
 
         response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
                                 messages=[m],
                                 stream=False))
-        await message.channel.send(response['message']['content'])
+        chunks = split_message(response["message"]["content"])
+        for chunk in chunks:
+            await message.channel.send(chunk)   # messages.append
         return
     messages.append({"role": "user", "content": message.content})
     print(f"Message received: {message.content}")
@@ -175,9 +170,31 @@ async def on_message(message):
     messages.append({"role": "assistant", "content": content})
     if len(messages) > max_history:
         messages[1:] = messages[-(max_history-1):]
-    chunks = split_message(content)
 
+    data_upload = ({"chat_id": message.id,
+                    "user_msg": message.content,
+                    "bot_msg": content,
+                    "created_at": last_message})
+
+    print(data_upload)
     for chunk in chunks:
         await message.channel.send(chunk)   # messages.append
+    # db.upload_data(pd.DataFrame(data_upload, index=[0]), "chat_log")
+
+    # db.close()
+
+
+@client.event
+async def on_thread_create(thread):
+    if thread.parent_id == parent_id:
+        starter = await thread.fetch_message(thread.id)
+        threads["chat_id"].append(thread.id)
+        await on_message(starter)
+
+
+@client.event
+async def on_thread_delete(thread):
+    messages.clear()
+
 
 client.run(discord_key)

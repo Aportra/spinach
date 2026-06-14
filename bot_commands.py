@@ -86,18 +86,17 @@ async def search_fn(sm, messages):
 async def news_fn():
     news = await asyncio.get_event_loop().run_in_executor(
             None, lambda: req_news())
-    news_message = 'here is the news please summarize and include the links and ensure they are clickable'
+    send_back = ''
     for key in news:
-        news_message += key + ' '
-        for i in range(len(news[key])):
-            news_message += news[key][i]
+        print(key)
+        news_message = 'here is an article please summarize and include the links and ensure they are clickable'
+        news_message += key + ' ' + news[key]
 
-    response = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: (ollama.chat(model=model,
-                messages=([{"role": "system", "content": "Summarize the following news headlines and include clickable links alongside the headlines.Ensure you summarize each headline do not miss one and ensure each as their corresponding link. group by theme."},
-                            {"role": "user", "content": news_message}]),
-                            stream=False)))
-
-    return None, response['message']['content']
-
+        response = await asyncio.get_event_loop().run_in_executor(
+                None, lambda: (ollama.chat(model=model,
+                    messages=([{"role": "system", "content": "Summarize the following news headlines and include clickable links alongside the headlines.Ensure you summarize each headline do not miss one and ensure each as their corresponding link. group by theme."},
+                                {"role": "user", "content": news_message}]),
+                                stream=False)))
+        send_back += response['message']['content'] + '\n'
+    return None, send_back
 

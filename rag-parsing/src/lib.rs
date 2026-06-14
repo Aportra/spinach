@@ -42,6 +42,7 @@ fn parse_yaml() -> Result<Value> {
     Ok(serde_yaml::from_str(&content).expect("error"))
 }
 
+
 #[pyfunction]
 pub fn req_news() -> PyResult<HashMap<String, String>> {
     let num_articles = 10;
@@ -115,7 +116,7 @@ pub fn req_news() -> PyResult<HashMap<String, String>> {
             })?
             .text()
             .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("JSON parse error: {e}"))
+                PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Text parse error: {e}"))
             })?;
 
             let document = Html::parse_document(&l);
@@ -237,9 +238,7 @@ pub fn search(q: String) -> PyResult<HashMap<String, Vec<String>>> {
         })?;
 
     let request = client
-        .get(format!(
-            "https://api.search.brave.com/res/v1/web/search"
-        ))
+        .get("https://api.search.brave.com/res/v1/web/search")
         .query(&[("q",q)])
         .send()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("HTTP error: {e}")))?
@@ -259,6 +258,17 @@ pub fn search(q: String) -> PyResult<HashMap<String, Vec<String>>> {
                 title.to_string(),
                 vec![description.to_string(), url.to_string()],
             );
+        }
+        
+        for url in search_result.keys(){
+            
+            let i = &search_result.get(url).unwrap()[0];
+
+            let mut new_headers = HeaderMap::new();
+            new_headers.insert(USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"));
+            new_headers.insert("Accept",HeaderValue::from_static("application/json, text/plain, */*"));
+
+    
         }
     };
     Ok(search_result)

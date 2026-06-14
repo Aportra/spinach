@@ -28,6 +28,7 @@ class psql:
 
 
     def upload_data(self, df, table_name):
+        print("reached")
         cur = self.connect.cursor()
         if cur is None:
             return
@@ -60,3 +61,7 @@ class psql:
     def close(self):
 
         self.connect.close()
+
+
+if __name__ == '__main__':
+    psql()
