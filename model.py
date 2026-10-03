@@ -1,4 +1,5 @@
 import ollama
+import time
 import discord
 import asyncio
 import yaml
@@ -42,7 +43,8 @@ threads = {"chat_id": [], "summary": [], "date_of_chat": []}
 
 active_thread = []
 
-
+last_rename = {}
+rename_timer = 600
 def split_message(text, limit=2000):
     chunks = []
     while len(text) > limit:
@@ -73,8 +75,22 @@ async def on_ready():
 @client.event
 async def on_message(message):
 
-    db = psql()
+    #db = psql()
+    now = time.monotonic()
+    last = last_rename.get(message.channel)
+    if last is not None and now - last < rename_timer:
+        print("too soon of name change")
+    else:
+        last_rename[message.channel] = now
+        print('reached')
+        summary = [{"role": "user", "content": "Summarize this for a title for this chat, be as concise as possible:"+message.content}]
+        ai_summary = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
+                                messages=summary,
+                                stream=False))
+        new_title = ai_summary["message"]["content"]
 
+        await message.channel.edit(name=new_title)
+        print(new_title)
     if message.author == client.user:
         return
     commands = ({"!set_schema": lambda: (bot_commands
@@ -115,7 +131,8 @@ async def on_message(message):
         if com not in commands.keys():
             await message.channel.send(f"not valid command:{com}")
             return
-        buf, response = await commands[com]()
+        async with message.channel.typing():
+            buf, response = await commands[com]()
         if response is not None:
             # data_upload = ({"chat_id": message.channel.id,
             #                 "user_msg": message.content,
@@ -153,7 +170,8 @@ async def on_message(message):
                     None, lambda: look(context= message.content, file= files))
             m = {"role": "user", "content": "here is the file:"+str(data)+message.content}
 
-        response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
+        async with message.channel.typing():
+            response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
                                 messages=[m],
                                 stream=False))
         chunks = split_message(response["message"]["content"])
@@ -162,10 +180,10 @@ async def on_message(message):
         return
     messages.append({"role": "user", "content": message.content})
     print(f"Message received: {message.content}")
-
-    response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
-                            messages=messages,
-                            stream=False))
+    async with message.channel.typing():
+        response = await asyncio.get_event_loop().run_in_executor(None,lambda:ollama.chat(model=model,
+                                messages=messages,
+                                stream=False))
     content = response["message"]["content"]
     messages.append({"role": "assistant", "content": content})
     if len(messages) > max_history:
@@ -177,6 +195,8 @@ async def on_message(message):
                     "created_at": last_message})
 
     print(data_upload)
+
+    chunks = split_message(content)
     for chunk in chunks:
         await message.channel.send(chunk)   # messages.append
     # db.upload_data(pd.DataFrame(data_upload, index=[0]), "chat_log")

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 
-model = 'gemma4:e4b'
+model = 'gemma4:26b'
 
 
 async def set_schema(schema_set, schema_messages):
